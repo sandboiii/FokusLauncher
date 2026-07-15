@@ -3,10 +3,7 @@ package com.lu4p.fokuslauncher.data.util
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
-import com.lu4p.fokuslauncher.data.local.APP_LOCALE_TAG_KEY
-import com.lu4p.fokuslauncher.data.local.fokusLauncherPreferencesDataStore
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import com.lu4p.fokuslauncher.data.local.BootstrapPrefs
 
 object AppLocaleHelper {
 
@@ -18,34 +15,19 @@ object AppLocaleHelper {
     }
 
     /**
-     * Read persisted tag and apply before the first activity attaches.
-     *
-     * Must not use [runBlocking] on the main thread: DataStore can dispatch to the main looper,
-     * which deadlocks while the UI thread is blocked inside [runBlocking].
+     * Apply the persisted tag before the first activity attaches, without touching DataStore:
+     * blocking on its first disk read here kept the main thread waiting for the whole file parse.
+     * Reads the [BootstrapPrefs] mirror instead; DataStore stays the source of truth and
+     * [com.lu4p.fokuslauncher.FokusLauncherApp] backfills the mirror asynchronously.
      */
-    fun applyStoredLocaleFromDisk(context: Context) {
-        val appContext = context.applicationContext
-        val tag =
-                try {
-                    val holder = arrayOfNulls<String>(1)
-                    val worker =
-                            Thread(
-                                    {
-                                        holder[0] =
-                                                runBlocking {
-                                                    appContext.fokusLauncherPreferencesDataStore
-                                                            .data
-                                                            .first()[APP_LOCALE_TAG_KEY] ?: ""
-                                                }
-                                    },
-                                    "fokus-locale-bootstrap"
-                            )
-                    worker.start()
-                    worker.join()
-                    holder[0] ?: ""
-                } catch (_: Exception) {
-                    ""
-                }
+    fun applyStoredLocaleFromBootstrap(context: Context) {
+        val tag = try {
+            BootstrapPrefs.readLocaleTag(context)
+        } catch (_: Exception) {
+            ""
+        }
+        // Blank tag = follow system: skip AppCompat entirely on the common path.
+        if (tag.isBlank()) return
         try {
             applyLocaleTag(tag)
         } catch (_: Exception) {

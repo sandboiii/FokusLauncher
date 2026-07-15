@@ -141,11 +141,16 @@ fun FokusNavGraph(
 ) {
     val hasCompletedOnboarding by navGraphViewModel.hasCompletedOnboarding.collectAsStateWithLifecycle()
 
-    if (!hasCompletedOnboarding) {
-        OnboardingScreen(
-            onNavigateToHome = { /* ViewModel sets hasCompletedOnboarding */ }
-        )
-        return
+    when (hasCompletedOnboarding) {
+        // Unknown (fresh install or pre-mirror update): wallpaper only, no onboarding flash.
+        null -> return
+        false -> {
+            OnboardingScreen(
+                onNavigateToHome = { /* ViewModel sets hasCompletedOnboarding */ }
+            )
+            return
+        }
+        true -> Unit
     }
 
     val navController = rememberNavController()

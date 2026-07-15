@@ -63,6 +63,9 @@ import org.json.JSONObject
 /** BCP-47 tag (e.g. en, pl). Empty = follow system. Shared with [AppLocaleHelper]. */
 internal val APP_LOCALE_TAG_KEY = stringPreferencesKey("app_locale_tag")
 
+/** Mirrored into [BootstrapPrefs]; shared with [com.lu4p.fokuslauncher.FokusLauncherApp] for backfill. */
+internal val HAS_COMPLETED_ONBOARDING_KEY = booleanPreferencesKey("has_completed_onboarding")
+
 data class HomeWidgetVisibility(
         val showClock: Boolean,
         val showDate: Boolean,
@@ -154,7 +157,6 @@ class PreferencesManager @Inject constructor(@param:ApplicationContext private v
                 booleanPreferencesKey("drawer_search_auto_launch")
         private val DRAWER_SCROLL_TO_TOP_AUTO_KEYBOARD_KEY =
                 booleanPreferencesKey("drawer_scroll_to_top_auto_keyboard")
-        private val HAS_COMPLETED_ONBOARDING_KEY = booleanPreferencesKey("has_completed_onboarding")
         private val ONBOARDING_REACHED_SET_DEFAULT_KEY = booleanPreferencesKey("onboarding_reached_set_default")
         /**
          * User completed the in-app prominent AccessibilityService disclosure (checkbox + continue).
@@ -779,7 +781,15 @@ class PreferencesManager @Inject constructor(@param:ApplicationContext private v
     val hasCompletedOnboardingFlow: Flow<Boolean> =
             prefFlow(HAS_COMPLETED_ONBOARDING_KEY, false)
 
+    /**
+     * Synchronous value from the [BootstrapPrefs] mirror, readable before the first frame;
+     * null until the mirror is first written (fresh install or pre-mirror update).
+     */
+    fun hasCompletedOnboardingBootstrap(): Boolean? =
+            BootstrapPrefs.readHasCompletedOnboarding(context)
+
     suspend fun setHasCompletedOnboarding(completed: Boolean) {
+        BootstrapPrefs.writeHasCompletedOnboarding(context, completed)
         context.fokusLauncherPreferencesDataStore.edit { prefs ->
             prefs[HAS_COMPLETED_ONBOARDING_KEY] = completed
             if (completed) prefs.remove(ONBOARDING_REACHED_SET_DEFAULT_KEY)
@@ -979,6 +989,7 @@ class PreferencesManager @Inject constructor(@param:ApplicationContext private v
 
     suspend fun setAppLocaleTag(tag: String) {
         val trimmed = tag.trim()
+        BootstrapPrefs.writeLocaleTag(context, trimmed)
         context.fokusLauncherPreferencesDataStore.edit { prefs ->
             if (trimmed.isEmpty()) prefs.remove(APP_LOCALE_TAG_KEY)
             else prefs[APP_LOCALE_TAG_KEY] = trimmed

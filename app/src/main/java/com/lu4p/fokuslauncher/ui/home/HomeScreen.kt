@@ -1,5 +1,6 @@
 package com.lu4p.fokuslauncher.ui.home
 
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -123,6 +124,10 @@ fun HomeScreen(
     val onWeatherClick = viewModel::openWeatherAppPicker
     val onScreenTimeClick = viewModel::openDigitalWellbeing
     val onDoubleTapEmptyLock = viewModel::onDoubleTapEmptyLock
+
+    // TTFD signal: "fully drawn" once home text is actually on screen (drives `am start -W`
+    // fully-drawn reporting and macrobenchmark's reportFullyDrawn metric).
+    ReportDrawnWhen { clockUiState.currentTime.isNotEmpty() }
 
     LaunchedEffect(viewModel) {
         viewModel.requestLockAccessibilitySettings.collect {

@@ -21,11 +21,17 @@ class FokusNavGraphViewModel @Inject constructor(
         preferencesManager: PreferencesManager,
 ) : ViewModel() {
 
-    val hasCompletedOnboarding =
-            preferencesManager.hasCompletedOnboardingFlow.stateWhileSubscribedIn(
-                    viewModelScope,
-                    false,
-            )
+    /**
+     * null = unknown (bootstrap mirror not yet written); the DataStore emission resolves it.
+     * Seeding from the synchronous mirror lets onboarded users compose Home on the first frame.
+     */
+    val hasCompletedOnboarding: StateFlow<Boolean?> =
+            preferencesManager.hasCompletedOnboardingFlow
+                    .map<Boolean, Boolean?> { it }
+                    .stateWhileSubscribedIn(
+                            viewModelScope,
+                            preferencesManager.hasCompletedOnboardingBootstrap(),
+                    )
 
     val photoWallpaperDrawerOverlayUiState: StateFlow<PhotoWallpaperDrawerOverlayUi> =
             combine(

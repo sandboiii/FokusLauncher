@@ -255,7 +255,9 @@ class HomeViewModel @Inject constructor(
                 ?: fav.label
             fav.copy(label = resolvedName)
         }
-    }.stateWhileSubscribedIn(viewModelScope, emptyList())
+    // Eager so the DataStore read overlaps VM construction instead of waiting for the
+    // first UI subscription — stored labels put favorite text on the first home frame.
+    }.stateEagerlyIn(viewModelScope, emptyList())
 
     // ── Dialog state ────────────────────────────────────────────────
 
@@ -352,6 +354,7 @@ class HomeViewModel @Inject constructor(
     }
 
     init {
+        primeClockState()
         viewModelScope.launch {
             preferencesManager.ensureRightSideShortcutsInitialized()
             preferencesManager.migrateLegacyDialerShortcutTargets()
@@ -750,6 +753,31 @@ class HomeViewModel @Inject constructor(
             startPackageScopedIntent(favorite, Intent.ACTION_DELETE)
 
     // ── Clock / Battery / Weather ───────────────────────────────────
+
+    /**
+     * Fill clock/date synchronously at construction so the first home frame never shows empty
+     * strings; the ticker takes over from the next second. Dispatcher-independent, unlike the
+     * ticker's first iteration.
+     */
+    private fun primeClockState() {
+        try {
+            val now = Date()
+            val locale = Locale.getDefault()
+            val is24Hour = DateFormat.is24HourFormat(context)
+            _clockUiState.value =
+                _clockUiState.value.copy(
+                    currentTime =
+                            clockDisplayTimeWithoutDayPeriod(
+                                    DateFormat.getTimeFormat(context).format(now),
+                                    is24Hour,
+                            ),
+                    currentDate = formatHomeDate(now, locale, _homeDateFormatStyle.value),
+                    is24HourFormat = is24Hour,
+                )
+        } catch (_: Exception) {
+            // Mocked contexts in unit tests may not support DateFormat; the ticker fills in.
+        }
+    }
 
     private fun startClockTicker() {
         viewModelScope.launch {
