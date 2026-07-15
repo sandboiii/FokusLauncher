@@ -118,6 +118,14 @@ class AppDrawerViewModelTest {
         every { appRepository.invalidateCache() } answers { installedAppsVersion.value += 1L }
         installedApps = testApps
         every { appRepository.getInstalledApps() } answers { installedApps }
+        // Snapshot-first variants delegate to the plain getters so per-test overrides of
+        // getInstalledApps()/getArchivedApps() keep driving the drawer rebuild path.
+        every { appRepository.getInstalledAppsSnapshotFirst() } answers {
+            appRepository.getInstalledApps()
+        }
+        every { appRepository.getArchivedAppsSnapshotFirst() } answers {
+            appRepository.getArchivedApps()
+        }
         every { appRepository.getHiddenApps() } returns hiddenFlow
         every { appRepository.getAllRenamedApps() } returns renamedFlow
         every { appRepository.getAllAppCategories() } returns categoriesFlow

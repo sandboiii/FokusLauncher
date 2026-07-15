@@ -14,6 +14,7 @@ import android.os.UserHandle
 import android.os.UserManager
 import com.lu4p.fokuslauncher.R
 import com.lu4p.fokuslauncher.data.database.dao.AppDao
+import com.lu4p.fokuslauncher.data.local.AppListSnapshotStore
 import com.lu4p.fokuslauncher.data.database.entity.AppCategoryDefinitionEntity
 import com.lu4p.fokuslauncher.data.database.entity.AppCategoryEntity
 import com.lu4p.fokuslauncher.data.database.entity.HiddenAppEntity
@@ -90,7 +91,7 @@ class AppRepositoryTest {
         every { context.getString(R.string.inferred_category_media) } returns "Media"
         every { context.getString(R.string.shortcut_generic_label) } returns "Shortcut"
 
-        repository = AppRepository(context, appDao, privateSpaceManager)
+        repository = AppRepository(context, appDao, privateSpaceManager, mockk(relaxed = true))
     }
 
     // --- App Loading Tests ---
@@ -261,7 +262,7 @@ class AppRepositoryTest {
     fun `LauncherApps package added callback invalidates cache and schedules delayed refresh`() {
         val callbackSlot = slot<LauncherApps.Callback>()
         every { launcherApps.registerCallback(capture(callbackSlot), any()) } returns Unit
-        repository = AppRepository(context, appDao, privateSpaceManager)
+        repository = AppRepository(context, appDao, privateSpaceManager, mockk(relaxed = true))
 
         every {
             launcherApps.getActivityList(null, myUser)
@@ -306,7 +307,7 @@ class AppRepositoryTest {
             runTest(UnconfinedTestDispatcher()) {
                 val callbackSlot = slot<LauncherApps.Callback>()
                 every { launcherApps.registerCallback(capture(callbackSlot), any()) } returns Unit
-                repository = AppRepository(context, appDao, privateSpaceManager)
+                repository = AppRepository(context, appDao, privateSpaceManager, mockk(relaxed = true))
 
                 every {
                     launcherApps.getActivityList(null, myUser)
@@ -400,7 +401,12 @@ class AppRepositoryTest {
     @Test
     fun `launchApp returns false when no intent found`() {
         val realContext = RuntimeEnvironment.getApplication().applicationContext as Context
-        val realRepository = AppRepository(realContext, appDao, PrivateSpaceManager(realContext))
+        val realRepository = AppRepository(
+                        realContext,
+                        appDao,
+                        PrivateSpaceManager(realContext),
+                        AppListSnapshotStore(realContext),
+                )
 
         val result = realRepository.launchApp("com.lu4p.nonexistent")
 
@@ -539,7 +545,7 @@ class AppRepositoryTest {
     @Test
     fun `getInstalledApps falls back to legacy query when LauncherApps missing`() {
         every { context.getSystemService(Context.LAUNCHER_APPS_SERVICE) } returns null
-        val legacyRepo = AppRepository(context, appDao, privateSpaceManager)
+        val legacyRepo = AppRepository(context, appDao, privateSpaceManager, mockk(relaxed = true))
 
         val resolveInfos =
                 listOf(
@@ -678,7 +684,12 @@ class AppRepositoryTest {
     @Test
     fun `setAppCategory normalizes localized inferred category names`() = runTest {
         val realContext = RuntimeEnvironment.getApplication().applicationContext as Context
-        val realRepository = AppRepository(realContext, appDao, PrivateSpaceManager(realContext))
+        val realRepository = AppRepository(
+                        realContext,
+                        appDao,
+                        PrivateSpaceManager(realContext),
+                        AppListSnapshotStore(realContext),
+                )
 
         realRepository.setAppCategory("com.lu4p.app1", "0", "Produktivität")
 
@@ -699,7 +710,12 @@ class AppRepositoryTest {
         val realContext = RuntimeEnvironment.getApplication().applicationContext as Context
         every { appDao.getAllAppCategories() } returns
                 flowOf(listOf(AppCategoryEntity("com.lu4p.app1", "0", "Spiele")))
-        val realRepository = AppRepository(realContext, appDao, PrivateSpaceManager(realContext))
+        val realRepository = AppRepository(
+                        realContext,
+                        appDao,
+                        PrivateSpaceManager(realContext),
+                        AppListSnapshotStore(realContext),
+                )
 
         val result = realRepository.getAllAppCategories().first()
 
@@ -804,7 +820,12 @@ class AppRepositoryTest {
                             )
                     )
             val realRepository =
-                    AppRepository(realContext, realDao, PrivateSpaceManager(realContext))
+                    AppRepository(
+                            realContext,
+                            realDao,
+                            PrivateSpaceManager(realContext),
+                            AppListSnapshotStore(realContext),
+                    )
             realRepository.invalidateCache()
             realRepository.deleteCategory("Games")
 

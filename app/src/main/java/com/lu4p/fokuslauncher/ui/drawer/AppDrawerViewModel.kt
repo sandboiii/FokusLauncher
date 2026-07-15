@@ -804,8 +804,14 @@ constructor(
             hadVisibleApps: Boolean,
             hadOwnerProfileApps: Boolean,
     ): List<AppInfo> {
-        var base = withContext(drawerComputationDispatcher) { appRepository.getInstalledApps() }
-        var archived = appRepository.getArchivedApps()
+        // Snapshot-first: the first rebuild after process start renders the persisted list
+        // immediately; the repository reconciles with a real scan and bumps the version flow
+        // (observed in observeInstalledApps) if anything changed.
+        var base =
+                withContext(drawerComputationDispatcher) {
+                    appRepository.getInstalledAppsSnapshotFirst()
+                }
+        var archived = appRepository.getArchivedAppsSnapshotFirst()
         val ownerArchived = { archived.any { it.userHandle == null } }
         if (hadVisibleApps &&
                         ((base.isEmpty() && archived.isEmpty()) ||
@@ -849,7 +855,7 @@ constructor(
                             hadVisibleApps = hadVisibleApps,
                             hadOwnerProfileApps = hadOwnerProfileApps,
                     )
-            val archivedApps = appRepository.getArchivedApps()
+            val archivedApps = appRepository.getArchivedAppsSnapshotFirst()
             val ownerArchived = archivedApps.any { it.userHandle == null }
             if (base.isEmpty() && hadVisibleApps && archivedApps.isEmpty()) {
                 return
