@@ -39,4 +39,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Fokus Launcher"
 include(":app")
+include(":baselineprofile")
  

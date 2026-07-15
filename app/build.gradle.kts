@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.baselineprofile)
 }
 
 // Gradle only reads gradle.properties from the repo root and ~/.gradle — not from project/.gradle/.
@@ -204,6 +205,13 @@ android {
     }
 }
 
+baselineProfile {
+    // Profiles are generated on a developer device (`:app:generateBaselineProfile`) and the
+    // emitted src/release/generated/baselineProfiles/*.txt committed, so release builds —
+    // including F-Droid's — compile them deterministically without a device.
+    automaticGenerationDuringBuild = false
+}
+
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
@@ -240,6 +248,11 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
+
+    // Startup performance: installs the committed baseline profile on stores without
+    // cloud profiles (F-Droid), enabling AOT of the startup path after install.
+    implementation(libs.androidx.profileinstaller)
+    "baselineProfile"(project(":baselineprofile"))
 
     // Unit Testing
     testImplementation(libs.mockwebserver)
